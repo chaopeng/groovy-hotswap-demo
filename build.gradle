@@ -1,0 +1,83 @@
+apply plugin: 'java'
+apply plugin: 'findbugs'
+apply plugin: 'idea'
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+ext.projectName = "$name"
+
+repositories {
+	maven {
+		// 使用开源中国仓库
+		url 'http://maven.oschina.net/content/groups/public/'
+	}
+}
+
+// 依赖配置
+dependencies {
+	compile (
+		'org.slf4j:slf4j-api:1.7.5',
+		'ch.qos.logback:logback-core:1.0.13',
+		'ch.qos.logback:logback-classic:1.0.13',
+		"org.codehaus.groovy:groovy-all:2.2.2"
+	)
+	testCompile (
+	) 
+}
+
+// 忽略handler
+sourceSets {
+  main {
+    java {
+      exclude 'me/chaopeng/hotswap/handler/**'
+    }
+  }
+}
+
+jar {
+	manifest {
+		attributes (
+			'Main-Class': 'me.chaopeng.hotswap.HotSwapDemo',
+			'Class-Path': '. ' + configurations.compile.collect { it.getName() }.join(' ')
+		)
+	}
+}
+
+// 初始化任务
+task initPath {
+	sourceSets*.java.srcDirs*.each { it.mkdirs() }
+	sourceSets*.resources.srcDirs*.each { it.mkdirs()}
+}
+
+// 复制依赖包到指定目录
+ext.libPath = "build/libs"
+task downloadDependencies {
+	copy{
+		from configurations.runtime
+		into libPath
+	}
+}
+
+assemble.dependsOn(downloadDependencies)
+
+// 复制handlers到指定目录
+task copyHandler {
+	copy{
+		from "src/main/java/me/chaopeng/hotswap/handler"
+		into libPath + "/handlers"
+	}
+}
+
+assemble.dependsOn(copyHandler)
+
+
+// findbugs
+tasks.withType(FindBugs) {
+	ignoreFailures = true
+	reports {
+		xml.enabled = false
+		html.enabled = true
+	}
+	reportLevel = "high"
+}
